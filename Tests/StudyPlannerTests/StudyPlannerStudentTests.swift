@@ -73,7 +73,13 @@ final class StudyPlanDecodingTests: XCTestCase {
     func testDecodesKeyedPlanJSON() throws {
         let plan = try JSONDecoder().decode(StudyPlan.self, from: fixtureData("keyed-plan"))
 
-        XCTAssertEqual(plan.items.map(\.id), ["b"])
+        XCTAssertEqual(plan.items.map(\.id), ["a", "z", "b"])
+    }
+
+    func testKeyedDecodingRejectsDuplicateIDs() throws {
+        let data = try fixtureData("keyed-duplicate-ids")
+
+        assertThrows(try JSONDecoder().decode(StudyPlan.self, from: data), .duplicateID("dup"))
     }
 
     func testDecodingBlankTitleThrowsDomainError() throws {

@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": "dup",
+      "title": "First",
+      "estimatedMinutes": 5,
+      "category": "reading",
+      "isCompleted": false
+    },
+    {
+      "id": "dup",
+      "title": "Second",
+      "estimatedMinutes": 10,
+      "category": "practice",
+      "isCompleted": false
+    }
+  ]
+}

@@ -6,6 +6,20 @@
       "estimatedMinutes": 5,
       "category": "practice",
       "isCompleted": false
+    },
+    {
+      "id": "z",
+      "title": "Alpha",
+      "estimatedMinutes": 10,
+      "category": "reading",
+      "isCompleted": false
+    },
+    {
+      "id": "a",
+      "title": "Alpha",
+      "estimatedMinutes": 15,
+      "category": "project",
+      "isCompleted": false
     }
   ]
 }
