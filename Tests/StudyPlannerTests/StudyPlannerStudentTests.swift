@@ -56,45 +56,46 @@ final class StudyItemValidationTests: XCTestCase {
 }
 
 final class StudyPlanDecodingTests: XCTestCase {
-    private func fixtureData() throws -> Data {
+    private func fixtureData(_ name: String) throws -> Data {
         let url = try XCTUnwrap(
-            Bundle.module.url(forResource: "study-items", withExtension: "json", subdirectory: "Fixtures")
+            Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures")
         )
         return try Data(contentsOf: url)
     }
 
     func testDecodesTopLevelJSONArrayFixture() throws {
-        let plan = try StudyPlan.decode(from: fixtureData())
+        let plan = try StudyPlan.decode(from: fixtureData("study-items"))
 
         XCTAssertEqual(plan.items.map(\.id), ["planner-milestone", "collections-drill", "swift-chapter-1"])
         XCTAssertEqual(plan.incompleteMinutes(), 135)
     }
 
     func testDecodesKeyedPlanJSON() throws {
-        let json = #"{"items":[{"id":"b","title":"Beta","estimatedMinutes":5,"category":"practice","isCompleted":false}]}"#
-        let plan = try JSONDecoder().decode(StudyPlan.self, from: Data(json.utf8))
+        let plan = try JSONDecoder().decode(StudyPlan.self, from: fixtureData("keyed-plan"))
 
         XCTAssertEqual(plan.items.map(\.id), ["b"])
     }
 
-    func testDecodingBlankTitleThrowsDomainError() {
-        let json = #"[{"id":"a","title":"  ","estimatedMinutes":5,"category":"reading","isCompleted":false}]"#
-        assertThrows(try StudyPlan.decode(from: Data(json.utf8)), .blankTitle)
+    func testDecodingBlankTitleThrowsDomainError() throws {
+        let data = try fixtureData("invalid-blank-title")
+
+        assertThrows(try StudyPlan.decode(from: data), .blankTitle)
     }
 
-    func testDecodingNonPositiveMinutesThrowsDomainError() {
-        let json = #"[{"id":"a","title":"A","estimatedMinutes":0,"category":"reading","isCompleted":false}]"#
-        assertThrows(try StudyPlan.decode(from: Data(json.utf8)), .nonPositiveEstimatedMinutes)
+    func testDecodingNonPositiveMinutesThrowsDomainError() throws {
+        let data = try fixtureData("invalid-zero-minutes")
+
+        assertThrows(try StudyPlan.decode(from: data), .nonPositiveEstimatedMinutes)
     }
 
-    func testDecodingUnknownCategoryThrows() {
-        let json = #"[{"id":"a","title":"A","estimatedMinutes":5,"category":"napping","isCompleted":false}]"#
-        XCTAssertThrowsError(try StudyPlan.decode(from: Data(json.utf8)))
+    func testDecodingUnknownCategoryThrows() throws {
+        let data = try fixtureData("invalid-unknown-category")
+
+        XCTAssertThrowsError(try StudyPlan.decode(from: data))
     }
 
     func testDecodingOmittedIsCompletedDefaultsToFalse() throws {
-        let json = #"[{"id":"a","title":"A","estimatedMinutes":5,"category":"reading"}]"#
-        let plan = try StudyPlan.decode(from: Data(json.utf8))
+        let plan = try StudyPlan.decode(from: fixtureData("omitted-is-completed"))
 
         XCTAssertFalse(try XCTUnwrap(plan.items.first).isCompleted)
     }
