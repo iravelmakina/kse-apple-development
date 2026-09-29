@@ -180,11 +180,20 @@ final class StudyPlanImportMergingTests: XCTestCase {
 
     func testExistingIDsAreReplacedAtTheirCurrentPositions() throws {
         var plan = try basePlan()
+        let untouched = try XCTUnwrap(plan.items.first)
+        let replacement = try makeItem(
+            id: "m2",
+            title: "Beta revised",
+            minutes: 99,
+            category: .project,
+            isCompleted: true
+        )
 
-        try plan.importMerging([try makeItem(id: "m2", title: "Beta revised", minutes: 99)])
+        try plan.importMerging([replacement])
 
         XCTAssertEqual(plan.items.map(\.id), ["m1", "m2"])
-        XCTAssertEqual(plan.items.last?.estimatedMinutes, 99)
+        XCTAssertEqual(plan.items.last, replacement)
+        XCTAssertEqual(plan.items.first, untouched)
     }
 
     func testNewIDsAreAppendedInAscendingIDOrder() throws {
