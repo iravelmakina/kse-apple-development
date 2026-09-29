@@ -86,7 +86,7 @@ Reviewed the full diff before accepting:
   `StudyItem.init(from:)`, `StudyPlan.init(from:)`, an internal `complete()`, a private static
   `normalized(_:)`, and two `private enum CodingKeys`.
 - `Tests/StudyPlannerTests/StudyPlannerStudentTests.swift` — new file, 22 `test…` methods across five
-  `XCTestCase` subclasses.
+  `XCTestCase` subclasses (later raised to 23, see Entry 4).
 
 Confirmed independently that the public API is unchanged (`grep` of every `public` declaration
 against the original template) and that the supplied tests are untouched
@@ -111,7 +111,8 @@ Accepted, with these points checked rather than taken on trust:
 
 ### Verification command/result
 
-`swift test` → **Executed 25 tests, with 0 failures** (3 supplied + 22 student-authored).
+`swift test` → **Executed 25 tests, with 0 failures** (3 supplied + 22 student-authored). Superseded
+by Entry 4: 26 tests.
 
 Note: bare `swift test` initially failed on this machine with
 `unable to resolve module dependency: 'XCTest'` because `xcode-select` pointed at
@@ -124,3 +125,63 @@ setting, not a property of the package.
 `artifacts/swift-test.txt` — captured passing run
 `PLAN.md` — acceptance criteria, implementation steps, and risks
 `Tests/StudyPlannerTests/StudyPlannerStudentTests.swift` — the student test suite
+
+---
+
+## Entry 4 — Review, test hardening, and mutation testing
+
+### Tool/agent task
+
+Reviewed the Entry 3 output rather than accepting it as finished. Asked the agent to (a) move the
+inline JSON payloads in the decoding tests into real files under `Tests/StudyPlannerTests/Fixtures/`,
+and (b) check whether the test suite is actually reliable, by injecting deliberate defects into the
+implementation and seeing which ones no test notices.
+
+### Output reviewed
+
+Three changes, reviewed and verified individually:
+
+- `8ac534b` — five JSON payloads extracted to `Fixtures/` files, loaded via a shared
+  `fixtureData(_:)` helper. No production code touched.
+- `ff293d1` — `testExistingIDsAreReplacedAtTheirCurrentPositions` strengthened. On review the original
+  asserted only `estimatedMinutes == 99`, so an implementation that merged fields instead of
+  replacing the item wholesale would have passed. Now compares the whole `StudyItem` (relying on its
+  `Equatable` conformance), varies every field in the replacement, and asserts the untouched item is
+  unchanged. Confirmed by injecting a field-merging defect and watching the test fail with the old
+  version passing it.
+- `9d22ad3` — closes a gap found by mutation testing, below.
+
+### Accepted/rejected/revised decision
+
+Accepted all three, with the mutation results as the evidence rather than inspection alone.
+
+16 defects were injected one at a time, with `swift test` run against each. 15 were caught. One
+survived: deleting `StudyPlan.init(from:)` changed no test result, because `keyed-plan.json` held a
+single item — with nothing to reorder and no duplicate to detect, the compiler-synthesized decoder
+produced an identical result. Keyed decoding was therefore never verified to validate or order, which
+is explicitly graded under task 2.
+
+Revised in response: `keyed-plan.json` now holds three items that are out of title order and share a
+title, so the sort and its ID tiebreak are exercised through the keyed path, and
+`keyed-duplicate-ids.json` was added with a test asserting duplicate rejection there. Re-ran that
+mutation afterwards and it is now caught by two tests.
+
+Also considered and rejected: converting the validation tests to parameterized/table form. XCTest has
+no built-in support, the loop idiom reports all rows as a single test, and task 5 counts individual
+`test…` methods, so collapsing them would work against the rubric.
+
+The full mutation list and the caveat that it validates test sensitivity, not the correctness of the
+spec interpretation, are recorded in `PLAN.md`.
+
+### Verification command/result
+
+`swift test` → **Executed 26 tests, with 0 failures** (3 supplied + 23 student-authored).
+
+Run unprefixed: the `DEVELOPER_DIR` workaround noted in Entry 3 is no longer needed after
+`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
+
+### Artifact links
+
+`artifacts/swift-test.txt` — regenerated from the final unprefixed run
+`PLAN.md` — mutation testing section and updated verification table
+`Tests/StudyPlannerTests/Fixtures/` — six JSON fixtures

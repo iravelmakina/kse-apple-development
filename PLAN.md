@@ -100,12 +100,12 @@ Test-first, each step verified before the next. All production changes are in th
    unique by the time sorting happens), which makes the result deterministic regardless. No
    dictionary iteration order is used anywhere.
 
-6. **Local toolchain, not the code.** `xcode-select` pointed at `CommandLineTools`, which ships no
-   XCTest, so bare `swift test` failed to build the test target with
-   `unable to resolve module dependency: 'XCTest'`. Runs were made with
-   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. Permanent fix:
-   `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. This affects only this machine;
-   the package itself needs no change.
+6. **Local toolchain, not the code (resolved).** `xcode-select` pointed at `CommandLineTools`, which
+   ships no XCTest, so bare `swift test` failed to build the test target with
+   `unable to resolve module dependency: 'XCTest'`. Early runs used
+   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`; fixed permanently on 2026-10-15 with
+   `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, and `swift test` now runs
+   unprefixed. This only ever affected this machine; the package needed no change.
 
 ## `swift test` verification
 
@@ -114,13 +114,39 @@ Test-first, each step verified before the next. All production changes are in th
 | 2026-10-11 | `swift build` | Build complete — template compiles before behavior exists. |
 | 2026-10-11 | `swift test` (after step 1) | `testBlankTitleIsRejected` passed; run stopped at `Implement plan validation`, as expected. |
 | 2026-10-11 | `swift test` (after step 7) | Executed 3 tests, 0 failures — all supplied public tests green. |
-| 2026-10-11 | `swift test` (final, with student suite) | **Executed 25 tests, 0 failures.** Captured in `artifacts/swift-test.txt`. |
+| 2026-10-11 | `swift test` (with student suite) | Executed 25 tests, 0 failures. |
+| 2026-10-15 | `swift test` (test payloads moved to `Fixtures/`) | Executed 25 tests, 0 failures. |
+| 2026-10-15 | Mutation testing, 16 deliberate defects | 15 caught, 1 survived — see below. |
+| 2026-10-15 | `swift test` (after closing the gap) | **Executed 26 tests, 0 failures.** Captured in `artifacts/swift-test.txt`. |
 
-Final suite: 3 supplied tests (unmodified — confirmed with `git diff --stat` showing no change to
-`StudyPlannerPublicTests.swift`) plus 22 student-authored `test…` methods across five
+Final suite: 3 supplied tests (unmodified — confirmed with `git diff` showing no change to
+`StudyPlannerPublicTests.swift`) plus 23 student-authored `test…` methods across five
 `XCTestCase` subclasses in `Tests/StudyPlannerTests/StudyPlannerStudentTests.swift`, covering
 validation precedence, both decode shapes, invalid-JSON rejection, first-duplicate reporting,
 title-then-ID ordering, the category and minute queries, unknown-ID and idempotent completion, and
 all four bonus behaviors including atomicity.
+
+JSON payloads live in `Tests/StudyPlannerTests/Fixtures/` alongside the supplied `study-items.json`,
+loaded through one `fixtureData(_:)` helper.
+
+## Mutation testing
+
+To check the suite detects regressions rather than merely passing, 16 deliberate defects were
+injected one at a time and `swift test` run against each: swapped validation guards, `> 0` relaxed to
+`>= 0`, trimming removed, the sort's ID tiebreak dropped, the duplicate check removed, each
+`init(from:)` deleted, `decodeIfPresent` made required, the `decode(from:)` catch widened,
+`markCompleted` made silent on unknown IDs, `complete()` made to toggle, `incompleteMinutes` made to
+count completed items, `items(in:)` made to ignore its argument, newcomers appended unsorted, the
+import batch duplicate check removed, and the import made non-atomic.
+
+15 were caught. One survived: deleting `StudyPlan.init(from:)` changed no test result, because
+`keyed-plan.json` held a single item, so the compiler-synthesized decoder produced an identical
+result and neither validation nor ordering was exercised through the keyed path — a real gap against
+task 2. Fixed by giving that fixture three items that are out of title order and share a title, and
+adding `keyed-duplicate-ids.json` with a test asserting duplicate rejection on the keyed path. All 16
+defects are now detected.
+
+Note on method: this verifies the tests detect change, not that the interpretation of the spec is
+correct. The judgment calls in Risks 1, 2 and 4 remain readings of the task description.
 
 No follow-up outstanding.
